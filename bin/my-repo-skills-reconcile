@@ -1,0 +1,172 @@
+#!/usr/bin/env zsh
+
+emulate -L zsh
+setopt ERR_EXIT NO_UNSET PIPE_FAIL
+
+readonly -a ADAPTERS=(
+  ".agents/skills/_my-repo-skills"
+  ".claude/skills/_my-repo-skills"
+)
+
+quiet=0
+cwd="$PWD"
+
+usage() {
+  print "usage: my-repo-skills-reconcile [--quiet] [--cwd <directory>]"
+}
+
+fail() {
+  print -u2 -- "my-repo-skills-reconcile: $*"
+  return 1
+}
+
+normalize_remote() {
+  local url="$1" rest host remote_path
+
+  if [[ "$url" == *://* ]]; then
+    rest="${url#*://}"
+    rest="${rest#*@}"
+    [[ "$rest" == */* ]] || return 1
+    host="${rest%%/*}"
+    host="${host%%:*}"
+    remote_path="${rest#*/}"
+  else
+    rest="${url#*@}"
+    [[ "$rest" == *:* ]] || return 1
+    host="${rest%%:*}"
+    remote_path="${rest#*:}"
+  fi
+
+  remote_path="${remote_path#/}"
+  remote_path="${remote_path%/}"
+  remote_path="${remote_path%.git}"
+  [[ -n "$host" && "$remote_path" == */* ]] || return 1
+  REPLY="${host:l}/$remote_path"
+}
+
+resolved_link() {
+  local link="$1" target
+  target="$(readlink "$link")" || return 1
+  [[ "$target" == /* ]] || target="${link:h}/$target"
+  REPLY="${target:A}"
+}
+
+is_managed_link() {
+  local link="$1" registry="$2"
+  resolved_link "$link" || return 1
+  [[ "$REPLY" == "$registry" || "$REPLY" == "$registry"/* ]]
+}
+
+remove_managed_adapters() {
+  local repo="$1" registry="$2" relative link
+  for relative in "${ADAPTERS[@]}"; do
+    link="$repo/$relative"
+    if [[ -L "$link" ]] && is_managed_link "$link" "$registry"; then
+      unlink "$link"
+      (( quiet )) || print -- "my repo skills: removed stale $link"
+    fi
+  done
+}
+
+ensure_link() {
+  local link="$1" target="$2" registry="$3"
+  mkdir -p "${link:h}"
+
+  if [[ -L "$link" ]]; then
+    resolved_link "$link"
+    [[ "$REPLY" == "${target:A}" ]] && return 0
+    is_managed_link "$link" "$registry" \
+      || fail "refusing to replace unmanaged symlink: $link"
+    unlink "$link"
+  elif [[ -e "$link" ]]; then
+    fail "refusing to replace existing path: $link"
+  fi
+
+  ln -s "$target" "$link"
+  (( quiet )) || print -- "my repo skills: linked $link -> $target"
+}
+
+ensure_excludes() {
+  local repo="$1" exclude existing relative entry
+  local -a missing
+
+  exclude="$(git -C "$repo" rev-parse --path-format=absolute --git-path info/exclude)"
+  mkdir -p "${exclude:h}"
+  existing=""
+  [[ -f "$exclude" ]] && existing="$(<"$exclude")"
+
+  for relative in "${ADAPTERS[@]}"; do
+    entry="/$relative"
+    if ! grep -Fxq "$entry" "$exclude" 2>/dev/null; then
+      missing+=("$entry")
+    fi
+  done
+
+  (( ${#missing} )) || return 0
+  {
+    [[ -z "$existing" || "$existing" == *$'\n' ]] || print
+    print
+    print "# My repo skills adapters"
+    print -l -- "${missing[@]}"
+  } >> "$exclude"
+}
+
+while (( $# )); do
+  case "$1" in
+    --quiet)
+      quiet=1
+      shift
+      ;;
+    --cwd)
+      (( $# >= 2 )) || fail "--cwd requires a directory"
+      cwd="$2"
+      shift 2
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      usage >&2
+      fail "unknown argument: $1"
+      ;;
+  esac
+done
+
+repo="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null || true)"
+[[ -n "$repo" ]] || exit 0
+repo="${repo:A}"
+
+registry="${MY_REPO_SKILLS_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/agents/my-repo-skills/skills}"
+registry="${registry/#\~/$HOME}"
+registry="${registry:A}"
+
+typeset -A identities matches
+remote_config="$(git -C "$repo" config --get-regexp '^remote\..*\.url$' 2>/dev/null || true)"
+for line in "${(@f)remote_config}"; do
+  url="${line#* }"
+  if normalize_remote "$url"; then
+    identities[$REPLY]=1
+  fi
+done
+
+for identity in "${(@k)identities}"; do
+  target="$registry/$identity"
+  [[ -d "$target" ]] && matches[${target:A}]=1
+done
+
+match_paths=("${(@k)matches}")
+if (( ${#match_paths} > 1 )); then
+  fail "multiple skill directories match:\n  ${(j:\n  :)${(o)match_paths}}"
+fi
+
+if (( ${#match_paths} == 0 )); then
+  remove_managed_adapters "$repo" "$registry"
+  exit 0
+fi
+
+target="$match_paths[1]"
+for relative in "${ADAPTERS[@]}"; do
+  ensure_link "$repo/$relative" "$target" "$registry"
+done
+ensure_excludes "$repo"
