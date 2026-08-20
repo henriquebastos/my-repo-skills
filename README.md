@@ -42,7 +42,8 @@ Version 1 intentionally targets a small environment:
 Clone this repository wherever you keep tools:
 
 ```bash
-git clone REPOSITORY_URL ~/.local/share/my-repo-skills
+git clone https://github.com/henriquebastos/my-repo-skills.git \
+  ~/.local/share/my-repo-skills
 ```
 
 Source one file from `.zshrc`:
