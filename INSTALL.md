@@ -22,5 +22,6 @@ Use this checklist when a user asks you to install My Repo Skills.
 10. Reconcile the target checkout and prove that its `git status` is unchanged.
 11. Report every file and shell configuration line changed.
 
-Never overwrite an existing adapter or shell configuration block silently.
+The reconciler replaces wrong links, files, and directories at its reserved adapter paths.
+Preserve existing shell configuration outside the requested integration.
 Never commit a personal skill into the matched project repository.

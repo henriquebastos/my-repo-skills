@@ -69,17 +69,15 @@ remove_managed_adapters() {
 }
 
 ensure_link() {
-  local link="$1" target="$2" registry="$3"
+  local link="$1" target="$2"
   mkdir -p "${link:h}"
 
   if [[ -L "$link" ]]; then
     resolved_link "$link"
     [[ "$REPLY" == "${target:A}" ]] && return 0
-    is_managed_link "$link" "$registry" \
-      || fail "refusing to replace unmanaged symlink: $link"
     unlink "$link"
   elif [[ -e "$link" ]]; then
-    fail "refusing to replace existing path: $link"
+    rm -rf -- "$link"
   fi
 
   ln -s "$target" "$link"
@@ -167,6 +165,6 @@ fi
 
 target="$match_paths[1]"
 for relative in "${ADAPTERS[@]}"; do
-  ensure_link "$repo/$relative" "$target" "$registry"
+  ensure_link "$repo/$relative" "$target"
 done
 ensure_excludes "$repo"

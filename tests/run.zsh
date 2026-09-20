@@ -65,11 +65,16 @@ pass "an unmatched repository is untouched"
 collision="$SANDBOX/collision"
 new_repo "$collision" "https://github.com/acme/widget.git"
 mkdir -p "$collision/.agents/skills/_my-repo-skills"
-if MY_REPO_SKILLS_DIR="$registry" "$RECONCILE" --quiet --cwd "$collision" 2>/dev/null; then
-  print -u2 "not ok - unmanaged collision should fail"
-  exit 1
-fi
-pass "an unmanaged adapter is never overwritten"
+print 'obsolete directory content' > "$collision/.agents/skills/_my-repo-skills/old"
+mkdir -p "$collision/.claude/skills"
+print 'obsolete file' > "$collision/.claude/skills/_my-repo-skills"
+print 'keep sibling' > "$collision/.agents/skills/other-skill"
+MY_REPO_SKILLS_DIR="$registry" "$RECONCILE" --quiet --cwd "$collision"
+for adapter in .agents .claude; do
+  assert test "$(readlink "$collision/$adapter/skills/_my-repo-skills")" = "$target"
+done
+assert test -f "$collision/.agents/skills/other-skill"
+pass "files and directories at reserved adapter paths are replaced"
 
 ambiguous="$SANDBOX/ambiguous"
 new_repo "$ambiguous" "https://github.com/acme/widget.git"
@@ -89,6 +94,41 @@ MY_REPO_SKILLS_DIR="$registry" "$RECONCILE" --quiet --cwd "$worktree"
 assert test -L "$worktree/.agents/skills/_my-repo-skills"
 assert test -z "$(git -C "$worktree" status --porcelain)"
 pass "linked Git worktrees receive clean adapters"
+
+replacement="$SANDBOX/replacement"
+new_repo "$replacement" "https://github.com/acme/widget.git"
+mkdir -p "$replacement/.agents/skills" "$replacement/.claude/skills" "$SANDBOX/unrelated"
+print 'keep me' > "$SANDBOX/unrelated/content"
+ln -s "$SANDBOX/missing-old-registry/github.com/acme/widget" "$replacement/.agents/skills/_my-repo-skills"
+ln -s "$SANDBOX/unrelated" "$replacement/.claude/skills/_my-repo-skills"
+MY_REPO_SKILLS_DIR="$registry" "$RECONCILE" --quiet --cwd "$replacement"
+for adapter in .agents .claude; do
+  assert test "$(readlink "$replacement/$adapter/skills/_my-repo-skills")" = "$target"
+done
+assert test -f "$SANDBOX/unrelated/content"
+assert test -z "$(git -C "$replacement" status --porcelain)"
+MY_REPO_SKILLS_DIR="$registry" "$RECONCILE" --quiet --cwd "$replacement"
+pass "wrong adapter symlinks are replaced without changing their former targets"
+
+unlink "$replacement/.agents/skills/_my-repo-skills"
+ln -s "$SANDBOX/unrelated" "$replacement/.agents/skills/_my-repo-skills"
+git -C "$replacement" remote add upstream 'https://gitlab.com/acme/widget.git'
+if MY_REPO_SKILLS_DIR="$registry" "$RECONCILE" --quiet --cwd "$replacement" 2>"$SANDBOX/error"; then
+  print -u2 'not ok - ambiguous replacement should fail'
+  exit 1
+fi
+assert grep -q 'multiple skill directories match' "$SANDBOX/error"
+assert test "$(readlink "$replacement/.agents/skills/_my-repo-skills")" = "$SANDBOX/unrelated"
+git -C "$replacement" remote remove upstream
+pass "ambiguous mappings fail before adapter replacement"
+
+MY_REPO_SKILLS_DIR="$SANDBOX/missing-registry" "$RECONCILE" --quiet --cwd "$replacement"
+assert test "$(readlink "$replacement/.agents/skills/_my-repo-skills")" = "$SANDBOX/unrelated"
+pass "a missing replacement leaves an unrelated adapter unchanged"
+
+MY_REPO_SKILLS_DIR="$registry" zsh -f -c 'cd "$1"; source "$2"' -- "$replacement" "$ROOT/zsh/my-repo-skills-reconcile.zsh"
+assert test "$(readlink "$replacement/.agents/skills/_my-repo-skills")" = "$target"
+pass "the shell startup hook replaces wrong adapter symlinks"
 
 rm -rf "$target"
 MY_REPO_SKILLS_DIR="$registry" "$RECONCILE" --quiet --cwd "$repo"

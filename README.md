@@ -102,13 +102,13 @@ my-repo-skills-reconcile --cwd /path/to/api
 
 The reconciler:
 
-- does nothing when no registry directory matches;
+- creates no adapters when no registry directory matches;
 - considers every configured remote, including `upstream`;
 - is idempotent;
-- refuses to overwrite unmanaged files, directories, or symlinks;
+- replaces wrong symlinks, files, and directories at its reserved adapter paths;
 - fails when different remotes match multiple registry directories;
 - removes stale adapters that it owns;
-- never modifies tracked project files.
+- leaves project files outside its reserved adapter paths unchanged.
 
 Skills are executable instructions. A repository controls its own remote
 configuration, so only use mappings with repositories you trust.
@@ -120,7 +120,7 @@ tests/run.zsh
 ```
 
 The tests use temporary repositories and cover HTTPS and SSH remotes, paths with
-spaces, idempotence, collisions, ambiguous remotes, linked worktrees, stale
+spaces, idempotence, adapter replacement, ambiguous remotes, linked worktrees, stale
 cleanup, and clean Git status.
 
 ## Uninstall
