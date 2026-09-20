@@ -31,6 +31,42 @@ new_repo() {
   git -C "$repo_path" remote add origin "$remote"
 }
 
+test_home="$SANDBOX/home with spaces"
+default_registry="$test_home/.agents/my-repo-skills/skills"
+custom_registry="$SANDBOX/custom registry"
+xdg_config="$SANDBOX/xdg config"
+for mapping_root in "$default_registry" "$custom_registry" "$xdg_config/agents/my-repo-skills/skills"; do
+  mkdir -p "$mapping_root/github.com/acme/widget"
+done
+
+for entry_point in command initializer; do
+  for setting in unset empty custom; do
+    default_repo="$SANDBOX/$entry_point-$setting"
+    new_repo "$default_repo" "https://github.com/acme/widget.git"
+    expected_registry="$default_registry"
+    [[ "$setting" == custom ]] && expected_registry="$custom_registry"
+    (
+      export HOME="$test_home" XDG_CONFIG_HOME="$xdg_config"
+      case "$setting" in
+        unset) unset MY_REPO_SKILLS_DIR ;;
+        empty) export MY_REPO_SKILLS_DIR="" ;;
+        custom) export MY_REPO_SKILLS_DIR="$custom_registry" ;;
+      esac
+      if [[ "$entry_point" == command ]]; then
+        "$RECONCILE" --quiet --cwd "$default_repo"
+      else
+        zsh -f -c 'cd "$1"; source "$2"; [[ "$MY_REPO_SKILLS_DIR" == "$3" ]]' -- \
+          "$default_repo" "$ROOT/zsh/my-repo-skills-reconcile.zsh" "$expected_registry"
+      fi
+    )
+    for adapter in .agents .claude; do
+      assert test "$(readlink "$default_repo/$adapter/skills/_my-repo-skills")" = "$expected_registry/github.com/acme/widget"
+    done
+    assert test -z "$(git -C "$default_repo" status --porcelain)"
+    pass "$entry_point uses the expected registry with $setting override and ignores XDG_CONFIG_HOME"
+  done
+done
+
 registry="$SANDBOX/registry"
 repo="$SANDBOX/work repo"
 target="$registry/github.com/acme/widget"

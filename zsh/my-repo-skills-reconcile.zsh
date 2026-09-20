@@ -4,7 +4,7 @@ emulate -L zsh
 
 local source_file="${${(%):-%N}:A}"
 typeset -g MY_REPO_SKILLS_HOME="${source_file:h:h}"
-typeset -gx MY_REPO_SKILLS_DIR="${MY_REPO_SKILLS_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/agents/my-repo-skills/skills}"
+typeset -gx MY_REPO_SKILLS_DIR="${MY_REPO_SKILLS_DIR:-$HOME/.agents/my-repo-skills/skills}"
 typeset -gaU path
 path=("$MY_REPO_SKILLS_HOME/bin" $path)
 

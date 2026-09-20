@@ -29,6 +29,11 @@ Pi, Codex, Amp, and tools that discover `.agents/skills` use the first adapter.
 Claude Code uses the second. Exact adapter paths are added to the repository's
 shared `.git/info/exclude`, so they stay out of `git status` across worktrees.
 
+See [Technical overview](docs/technical-overview.md) for the problem this solves,
+the trigger lifecycle, reconciliation algorithm, safety model, and complete user
+workflow. See [Customizing and extending](docs/customizing-and-extending.md) for
+supported extension points, invariants, troubleshooting, and developer notes.
+
 ## Requirements
 
 Version 1 intentionally targets a small environment:
@@ -59,8 +64,11 @@ working directory.
 The default registry is:
 
 ```text
-${XDG_CONFIG_HOME:-~/.config}/agents/my-repo-skills/skills
+~/.agents/my-repo-skills/skills
 ```
+
+`XDG_CONFIG_HOME` does not affect this default. Existing registries are not moved
+automatically. To keep an existing registry, set `MY_REPO_SKILLS_DIR` to its path.
 
 Override it before sourcing when desired:
 
@@ -80,7 +88,7 @@ https://github.com/acme/api.git
 create:
 
 ```text
-~/.config/agents/my-repo-skills/skills/
+~/.agents/my-repo-skills/skills/
 └── github.com/
     └── acme/
         └── api/

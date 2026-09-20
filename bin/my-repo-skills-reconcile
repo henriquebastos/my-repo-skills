@@ -135,7 +135,7 @@ repo="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null || true)"
 [[ -n "$repo" ]] || exit 0
 repo="${repo:A}"
 
-registry="${MY_REPO_SKILLS_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/agents/my-repo-skills/skills}"
+registry="${MY_REPO_SKILLS_DIR:-$HOME/.agents/my-repo-skills/skills}"
 registry="${registry/#\~/$HOME}"
 registry="${registry:A}"
 

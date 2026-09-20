@@ -25,7 +25,7 @@ About 35 seconds.
 "I put those skills in a directory I control. Each repository gets a path made from its host, owner, and repository name. In this example, the API repository has a deploy-preview skill. The skill stays outside the project. The implementation can be public, while my skill files stay on my machine or in storage I manage separately. Setting up My Repo Skills means sourcing one Zsh file and creating the skill directories I want."
 
 ```text
-~/.config/agents/my-repo-skills/skills/
+~/.agents/my-repo-skills/skills/
 └── github.com/
     └── acme/
         └── api/
@@ -35,7 +35,7 @@ About 35 seconds.
 
 The paths in this talk are examples from the README. `MY_REPO_SKILLS_DIR` can override the default registry location. "Private" describes where you keep the files. The tool does not encrypt them or configure access permissions.
 
-Source: [README, adding a skill](https://github.com/henriquebastos/my-repo-skills/blob/dc790fb7e6d3a193b8850454569b3881feafe292/README.md#add-a-repository-skill).
+Source: [current README, adding a skill](../../README.md#add-a-repository-skill).
 
 ## 1c The Git remote identifies the repository
 

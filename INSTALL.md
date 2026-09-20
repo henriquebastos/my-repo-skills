@@ -13,8 +13,9 @@ Use this checklist when a user asks you to install My Repo Skills.
    source <checkout>/zsh/my-repo-skills-reconcile.zsh
    ```
 
-6. If the user wants a non-default registry, add `MY_REPO_SKILLS_DIR` immediately
-   before the source line.
+6. The default registry is `~/.agents/my-repo-skills/skills`, regardless of
+   `XDG_CONFIG_HOME`. To use an existing or non-default registry, set
+   `MY_REPO_SKILLS_DIR` to its path immediately before the source line.
 7. Run `tests/run.zsh` from the implementation checkout.
 8. Create no repository mapping unless the user names the repository and skill.
 9. For a requested mapping, derive `<host>/<owner>/<repo>` from `git remote -v`;
